@@ -42,6 +42,23 @@ class TestGetAddressFromZipcode:
 
         assert result["display_name"] == "東京都"
 
+    def test_treats_explicit_null_fields_as_empty_string(self, requests_mock):
+        # zipcloudは町域情報が無い郵便番号に対して、キー自体を省略するのではなく
+        # 値をnullで返すことがある。.get(key, "")はこのケースを拾えないため、
+        # "東京都None"のような文字列が組み立てられないことを確認する。
+        requests_mock.get(
+            geocoding.ZIPCLOUD_URL,
+            json={
+                "status": 200,
+                "results": [{"address1": "東京都", "address2": None, "address3": None}],
+            },
+        )
+
+        result = geocoding.get_address_from_zipcode("1000001")
+
+        assert result == {"full_address": "東京都", "display_name": "東京都"}
+        assert "None" not in result["full_address"]
+
     def test_raises_when_status_is_not_200(self, requests_mock):
         requests_mock.get(
             geocoding.ZIPCLOUD_URL,

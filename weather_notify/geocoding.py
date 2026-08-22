@@ -4,7 +4,6 @@
     2. 国土地理院 地名検索API : 住所      -> 緯度経度
 """
 
-import urllib.parse
 import requests
 
 from .config import REQUEST_TIMEOUT
@@ -15,9 +14,7 @@ GSI_ADDRESS_SEARCH_URL = "https://msearch.gsi.go.jp/address-search/AddressSearch
 
 def get_address_from_zipcode(zipcode):
     """zipcloud APIで郵便番号から住所（都道府県・市区町村・町域）を取得する。"""
-    params = urllib.parse.urlencode({"zipcode": zipcode})
-    url = f"{ZIPCLOUD_URL}?{params}"
-    resp = requests.get(url, timeout=REQUEST_TIMEOUT)
+    resp = requests.get(ZIPCLOUD_URL, params={"zipcode": zipcode}, timeout=REQUEST_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
 
@@ -26,9 +23,12 @@ def get_address_from_zipcode(zipcode):
         raise ValueError(f"zipcloud lookup failed for {zipcode}: {message}")
 
     result = data["results"][0]
-    pref = result.get("address1", "")
-    city = result.get("address2", "")
-    town = result.get("address3", "")
+    # .get(key, "") はキー自体が無い場合しかフォールバックしないため、
+    # zipcloudが値をnullで返すケース（町域情報が無い郵便番号など）を
+    # 取りこぼさないよう `or ""` で明示的にNoneも空文字へ変換する。
+    pref = result.get("address1") or ""
+    city = result.get("address2") or ""
+    town = result.get("address3") or ""
     full_address = f"{pref}{city}{town}"
     # 通知に出す地名は市区町村（例: 渋谷区 / 大阪市）を優先する
     display_name = city or full_address
@@ -38,10 +38,13 @@ def get_address_from_zipcode(zipcode):
 
 def get_coordinates_from_address(address):
     """国土地理院 地名検索APIで住所から緯度経度を取得する。"""
-    params = urllib.parse.urlencode({"q": address})
-    url = f"{GSI_ADDRESS_SEARCH_URL}?{params}"
     headers = {"User-Agent": "weather-notify-bot/1.0"}
-    resp = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+    resp = requests.get(
+        GSI_ADDRESS_SEARCH_URL,
+        params={"q": address},
+        headers=headers,
+        timeout=REQUEST_TIMEOUT,
+    )
     resp.raise_for_status()
     results = resp.json()
 

@@ -44,6 +44,29 @@ class TestBuildLocationBlock:
         assert "傘: **必要**" in block
         assert "服装: 羽織るものがあると安心です" in block
 
+    def test_temperature_is_rounded_half_up_not_banker_rounded(self):
+        # Python組み込みのround()だとround(24.5) == 24（偶数丸め）になってしまうため、
+        # 24.5が25として表示される（四捨五入）ことを確認する。
+        block = discord_notifier.build_location_block(_location_data(temp_max=24.5, temp_min=17.5))
+
+        assert "最高 **25℃**" in block
+        assert "最低 **18℃**" in block
+
+
+class TestRoundHalfUp:
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (24.5, 25),
+            (17.5, 18),
+            (28.0, 28),
+            (-0.5, -1),
+            (-24.5, -25),
+        ],
+    )
+    def test_rounds_ties_away_from_zero(self, value, expected):
+        assert discord_notifier._round_half_up(value) == expected
+
 
 class TestBuildErrorBlock:
     def test_every_line_is_quoted_and_mentions_zipcode(self):
@@ -80,12 +103,16 @@ class TestDetermineEmbedColor:
 
 class TestBuildEmbed:
     def test_success_only(self, mocker):
+        # build_location_data はThreadPoolExecutorで並列に呼び出されるため、
+        # どのzipcodeが先に呼ばれるかは保証されない。呼び出し順に依存する
+        # side_effect=[...]ではなく、引数(zipcode)で結果を引く関数にする。
+        data_by_zipcode = {
+            "1500041": _location_data(display_name="渋谷区", umbrella="必要"),
+            "5300001": _location_data(display_name="大阪市北区", umbrella="不要", weathercode=0),
+        }
         mocker.patch(
             "weather_notify.discord_notifier.build_location_data",
-            side_effect=[
-                _location_data(display_name="渋谷区", umbrella="必要"),
-                _location_data(display_name="大阪市北区", umbrella="不要", weathercode=0),
-            ],
+            side_effect=lambda zipcode: data_by_zipcode[zipcode],
         )
 
         embed = discord_notifier.build_embed(["1500041", "5300001"])
@@ -98,17 +125,21 @@ class TestBuildEmbed:
         assert "📍 大阪市北区" in embed["description"]
         # 地点ブロック同士が空行で区切られていること
         assert "\n\n" in embed["description"]
+        # 並列実行の完了順によらず、zip_codesで渡した順序どおりに並ぶこと
+        assert embed["description"].index("渋谷区") < embed["description"].index("大阪市北区")
         assert embed["color"] == discord_notifier.COLOR_RAIN
         assert embed["footer"] == {"text": "Data by Open-Meteo"}
         assert "timestamp" in embed
 
     def test_partial_failure_is_reported_without_raising(self, mocker):
+        def fake_build_location_data(zipcode):
+            if zipcode == "0000000":
+                raise ValueError("zipcloud lookup failed")
+            return _location_data(display_name="渋谷区")
+
         mocker.patch(
             "weather_notify.discord_notifier.build_location_data",
-            side_effect=[
-                _location_data(display_name="渋谷区"),
-                ValueError("zipcloud lookup failed"),
-            ],
+            side_effect=fake_build_location_data,
         )
 
         embed = discord_notifier.build_embed(["1500041", "0000000"])
