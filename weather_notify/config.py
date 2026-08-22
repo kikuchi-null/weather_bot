@@ -17,9 +17,7 @@ except ImportError:
     # .envが読み込まれずDISCORD_WEBHOOK_URL等が「未設定」に見えてしまうため、
     # 原因を切り分けやすいようstderrに一言残す（処理自体は継続する）。
     print(
-        "[INFO] python-dotenv が見つからないため .env の読み込みをスキップしました。"
-        "Lambda環境ではこれが正常な状態です。ローカル実行でこのメッセージが出る場合は、"
-        "venvを有効化して `pip install -r requirements.txt` を実行済みか確認してください。",
+        """[INFO] python-dotenv が見つからないため .env の読み込みをスキップしました（Lambda環境ではこれが正常な状態です）。\nローカル実行でこのメッセージが出る場合は、venvを有効化して `pip install -r requirements.txt` を実行済みか確認してください。""",
         file=sys.stderr,
     )
 

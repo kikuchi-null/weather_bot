@@ -21,7 +21,7 @@ from .weather import SUNNY_CODES
 
 # 郵便番号1件につきzipcloud/国土地理院/Open-Meteoの3回のHTTP通信が発生するため、
 # 地点数が増えるほど逐次実行では待ち時間が積み上がる。並列実行時の同時実行数の上限。
-MAX_WORKERS = 8
+MAX_WORKERS = 4
 
 # Embedの帯色（傘が必要な地点があるか/晴れ一色かで切り替える）
 COLOR_RAIN = 0x3498DB    # 青: 傘が必要な地点が1つでもある
@@ -53,7 +53,7 @@ def build_location_block(data):
     lines = [
         f"### 📍 {data['display_name']}",
         f"{data['weather_emoji']} {data['weather_text']}",
-        f"🌡️ 最高 **{_round_half_up(data['temp_max'])}℃** / 最低 **{_round_half_up(data['temp_min'])}℃**",
+        f"🌡️ 気温: 🔺**{_round_half_up(data['temp_max'])}℃** / 🔻 **{_round_half_up(data['temp_min'])}℃**",
         f"☂️ 傘: **{data['umbrella']}**",
         f"👕 服装: {data['advice']}",
     ]
@@ -113,8 +113,7 @@ def _fetch_all_location_data(zip_codes):
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(zip_codes), MAX_WORKERS)) as executor:
         future_to_index = {
-            executor.submit(build_location_data, zipcode): i
-            for i, zipcode in enumerate(zip_codes)
+            executor.submit(build_location_data, zipcode): i for i, zipcode in enumerate(zip_codes)
         }
         for future in concurrent.futures.as_completed(future_to_index):
             index = future_to_index[future]
