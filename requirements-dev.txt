@@ -1,0 +1,5 @@
+# テスト実行にのみ必要な依存関係（Lambdaのデプロイパッケージには含めない）
+-r requirements.txt
+pytest
+pytest-mock
+requests-mock
