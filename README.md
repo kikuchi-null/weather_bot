@@ -94,20 +94,38 @@ weather_notify/
 
 1. デプロイパッケージの作成（`python-dotenv` はLambdaでは不要なので含めません）
 
+   `requests`はC拡張（`.so`）を含む依存パッケージ（`charset_normalizer`）を持つため、
+   Mac上で単純に`pip install`するとmacOS向けバイナリが混入し、Lambda（Linux）上で
+   動かない場合があります。`--platform`等を指定してLambdaのランタイムに合わせた
+   Linux向けwheelを明示的に取得してください（ランタイムをPython 3.12 / x86_64とする場合の例）。
+
    ```bash
    mkdir package
-   pip install requests -t package/
+   pip install \
+     --platform manylinux2014_x86_64 \
+     --implementation cp \
+     --python-version 3.12 \
+     --only-binary=:all: \
+     --target package/ \
+     requests
    cp lambda_function.py package/
    cp -r weather_notify package/
+   find package -name "__pycache__" -type d -exec rm -rf {} +
    cd package
    zip -r ../lambda_function.zip .
    cd ..
    ```
 
+   Lambda関数のアーキテクチャを arm64（Graviton2）にする場合は、
+   `--platform manylinux2014_x86_64` を `--platform manylinux2014_aarch64` に置き換え、
+   Lambda側のアーキテクチャ設定と必ず一致させてください。
+
 2. Lambda関数の作成・更新
 
-   - ランタイム: Python（3.11など）
+   - ランタイム: Python 3.12（上記のパッケージ作成時と同じバージョンを指定）
+   - アーキテクチャ: x86_64（上記の`--platform`と一致させる）
    - ハンドラー: `lambda_function.lambda_handler`
+   - タイムアウト: 既定の3秒では郵便番号ごとのAPI呼び出しに対して短すぎるため、30秒程度に延長
    - 上記 `lambda_function.zip` をアップロード
 
 3. Lambdaの環境変数を設定（ローカルの `.env` と同じキーを、Lambdaのコンソール/CLIから設定）
@@ -120,6 +138,7 @@ weather_notify/
    そのままLambdaの環境変数から値を読み込みます。
 
 4. EventBridge Schedulerでこの関数を毎日決まった時刻に呼び出すよう設定すれば完成です。
+   スケジュールのタイムゾーンに`Asia/Tokyo`を指定できるので、JSTでの実行時刻をそのまま設定できます。
 
 ## 地点の追加・変更
 
