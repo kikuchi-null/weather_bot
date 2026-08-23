@@ -40,7 +40,7 @@ class TestBuildLocationBlock:
 
         assert "📍 渋谷区" in block
         assert "🌧️ 雨" in block
-        assert "最高 **24℃** / 最低 **18℃**" in block
+        assert "🌡️ 気温: 🔺**24℃** / 🔻 **18℃**" in block
         assert "傘: **必要**" in block
         assert "服装: 羽織るものがあると安心です" in block
 
@@ -49,8 +49,8 @@ class TestBuildLocationBlock:
         # 24.5が25として表示される（四捨五入）ことを確認する。
         block = discord_notifier.build_location_block(_location_data(temp_max=24.5, temp_min=17.5))
 
-        assert "最高 **25℃**" in block
-        assert "最低 **18℃**" in block
+        assert "🔺**25℃**" in block
+        assert "🔻 **18℃**" in block
 
 
 class TestRoundHalfUp:

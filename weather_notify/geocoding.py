@@ -30,7 +30,7 @@ def get_address_from_zipcode(zipcode):
     city = result.get("address2") or ""
     town = result.get("address3") or ""
     full_address = f"{pref}{city}{town}"
-    # 通知に出す地名は市区町村（例: 渋谷区 / 大阪市）を優先する
+    # 通知に出す地名はフル住所を優先する
     display_name = full_address or (pref + city)
 
     return {"full_address": full_address, "display_name": display_name}
