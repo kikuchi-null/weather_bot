@@ -73,7 +73,7 @@ def determine_embed_color(location_data_list):
     """地点ごとの天気からEmbedの帯色を決める（傘要否 > 全晴れ > 曇り中心の優先度）。"""
     if not location_data_list:
         return COLOR_UNKNOWN
-    if any(d["umbrella"] == "必要" for d in location_data_list):
+    if any(d["umbrella"].startswith("必要") for d in location_data_list):
         return COLOR_RAIN
     if all(d["weathercode"] in SUNNY_CODES for d in location_data_list):
         return COLOR_SUNNY
@@ -94,7 +94,7 @@ def build_summary(zip_codes, location_data_list):
     if location_data_list:
         # 分母は「取得できた地点数」。失敗地点を含む全体数と混同しないよう、
         # 取得失敗があった場合は上の一文で別途明示している。
-        umbrella_needed = sum(1 for d in location_data_list if d["umbrella"] == "必要")
+        umbrella_needed = sum(1 for d in location_data_list if d["umbrella"].startswith("必要"))
         summary += f"\n☂️ 傘が必要な地点: **{umbrella_needed} / {len(location_data_list)}**"
 
     return summary, now_jst

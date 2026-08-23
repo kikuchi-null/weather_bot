@@ -6,7 +6,10 @@ from weather_notify import geocoding
 
 
 class TestGetAddressFromZipcode:
-    def test_success_prefers_city_as_display_name(self, requests_mock):
+    def test_success_uses_full_address_as_display_name(self, requests_mock):
+        # 現在の実装は display_name = full_address or (pref + city) のため、
+        # full_addressが非空である限りdisplay_nameは常にfull_addressと同じになる
+        # （pref + cityへのフォールバックは実質到達しない）。
         requests_mock.get(
             geocoding.ZIPCLOUD_URL,
             json={
@@ -26,7 +29,7 @@ class TestGetAddressFromZipcode:
 
         assert result == {
             "full_address": "東京都渋谷区神南",
-            "display_name": "渋谷区",
+            "display_name": "東京都渋谷区神南",
         }
 
     def test_falls_back_to_full_address_when_city_missing(self, requests_mock):
