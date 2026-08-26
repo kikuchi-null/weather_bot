@@ -78,7 +78,7 @@ def judge_umbrella(precipitation_probability, weathercode):
     is_high_probability = precipitation_probability is not None and precipitation_probability >= 50
 
     if is_rainy_code or is_high_probability:
-        return f"必要(最高降水確率: {precipitation_probability}%)"
+        return "必要"
     return "不要"
 
 

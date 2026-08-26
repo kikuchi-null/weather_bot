@@ -67,16 +67,16 @@ class TestJudgeUmbrella:
         assert weather.judge_umbrella(10, 0) == "不要"
 
     def test_needed_when_weathercode_is_rainy_even_with_low_probability(self):
-        assert weather.judge_umbrella(5, 61) == "必要(最高降水確率: 5%)"
+        assert weather.judge_umbrella(5, 61) == "必要"
 
     @pytest.mark.parametrize("snow_code", [71, 73, 75, 77])
     def test_needed_when_weathercode_is_plain_snow(self, snow_code):
         # RAINY_CODESは「雨・雪・雷雨系」を対象とするドキュメント通り、
         # にわか雪(85, 86)だけでなく通常の雪コードでも傘が必要と判定されること
-        assert weather.judge_umbrella(30, snow_code) == "必要(最高降水確率: 30%)"
+        assert weather.judge_umbrella(30, snow_code) == "必要"
 
     def test_needed_when_probability_is_high_even_if_code_is_cloudy(self):
-        assert weather.judge_umbrella(50, 3) == "必要(最高降水確率: 50%)"
+        assert weather.judge_umbrella(50, 3) == "必要"
 
     def test_not_needed_when_probability_just_below_threshold(self):
         assert weather.judge_umbrella(49, 3) == "不要"

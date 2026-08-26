@@ -13,6 +13,7 @@ def _location_data(
     temp_max=24.0,
     temp_min=18.0,
     umbrella="必要",
+    precipitation_probability=80,
     advice="羽織るものがあると安心です",
 ):
     return {
@@ -23,6 +24,7 @@ def _location_data(
         "temp_max": temp_max,
         "temp_min": temp_min,
         "umbrella": umbrella,
+        "precipitation_probability": precipitation_probability,
         "advice": advice,
     }
 
@@ -41,7 +43,7 @@ class TestBuildLocationBlock:
         assert "📍 渋谷区" in block
         assert "🌧️ 雨" in block
         assert "🌡️ 気温: 🔺**24℃** / 🔻 **18℃**" in block
-        assert "傘: **必要**" in block
+        assert "傘: **必要(最高降水確率: 80%)**" in block
         assert "服装: 羽織るものがあると安心です" in block
 
     def test_temperature_is_rounded_half_up_not_banker_rounded(self):
