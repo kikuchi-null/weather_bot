@@ -24,6 +24,7 @@ def _location_data(
         "temp_max": temp_max,
         "temp_min": temp_min,
         "umbrella": umbrella,
+        "umbrella_needed": umbrella == "必要",
         "precipitation_probability": precipitation_probability,
         "advice": advice,
     }

@@ -26,6 +26,7 @@ def build_location_data(zipcode):
         "temp_max": forecast["temp_max"],
         "temp_min": forecast["temp_min"],
         "umbrella": umbrella,
+        "umbrella_needed": umbrella == "必要",
         "precipitation_probability": forecast["precipitation_probability"],
         "advice": advice,
     }

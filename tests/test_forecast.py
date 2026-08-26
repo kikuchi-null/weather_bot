@@ -38,6 +38,7 @@ def test_build_location_data_combines_geocoding_and_weather(mocker):
         "temp_max": 24.0,
         "temp_min": 18.0,
         "umbrella": "必要",
+        "umbrella_needed": True,
         "precipitation_probability": 80,
         "advice": "羽織るものがあると安心です",
     }
