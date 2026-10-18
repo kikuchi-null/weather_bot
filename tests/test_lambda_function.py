@@ -27,20 +27,20 @@ def test_raises_when_zip_codes_is_missing(mocker):
         lambda_function.lambda_handler(None, None)
 
 
-def test_happy_path_builds_embed_and_sends_it_once(mocker):
+def test_happy_path_builds_message_and_sends_it_once(mocker):
     webhook_url = "https://discord.com/api/webhooks/xxx/yyy"
     zip_codes = ["1500041", "5300001"]
-    fake_embed = {"title": "🌤️ 今日の天気予報"}
+    fake_payload = {"content": "🌂 今日は傘不要です", "embeds": [{"title": "🌤️ 今日の天気予報"}]}
 
     mocker.patch("lambda_function.get_webhook_url", return_value=webhook_url)
     mocker.patch("lambda_function.get_zip_codes", return_value=zip_codes)
-    build_embed = mocker.patch("lambda_function.build_embed", return_value=fake_embed)
+    build_message = mocker.patch("lambda_function.build_message", return_value=fake_payload)
     send_discord = mocker.patch("lambda_function.send_discord")
 
     response = lambda_function.lambda_handler(None, None)
 
-    build_embed.assert_called_once_with(zip_codes)
-    send_discord.assert_called_once_with(webhook_url, fake_embed)
+    build_message.assert_called_once_with(zip_codes)
+    send_discord.assert_called_once_with(webhook_url, fake_payload)
 
     assert response["statusCode"] == 200
     assert json.loads(response["body"]) == {"message": "notified", "zip_codes": zip_codes}

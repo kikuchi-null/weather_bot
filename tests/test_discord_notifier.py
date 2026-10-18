@@ -47,6 +47,20 @@ class TestBuildLocationBlock:
         assert "傘: **必要(最高降水確率: 80%)**" in block
         assert "服装: 羽織るものがあると安心です" in block
 
+    def test_probability_is_shown_even_when_umbrella_is_not_needed(self):
+        block = discord_notifier.build_location_block(
+            _location_data(weathercode=3, umbrella="不要", precipitation_probability=40)
+        )
+
+        assert "傘: **不要(最高降水確率: 40%)**" in block
+
+    def test_probability_is_omitted_when_none(self):
+        # 雨系コードで傘「必要」でも、降水確率がnullなら "None%" と出さないこと
+        block = discord_notifier.build_location_block(_location_data(precipitation_probability=None))
+
+        assert "傘: **必要**" in block
+        assert "None" not in block
+
     def test_temperature_is_rounded_half_up_not_banker_rounded(self):
         # Python組み込みのround()だとround(24.5) == 24（偶数丸め）になってしまうため、
         # 24.5が25として表示される（四捨五入）ことを確認する。
@@ -104,7 +118,32 @@ class TestDetermineEmbedColor:
         assert discord_notifier.determine_embed_color([]) == discord_notifier.COLOR_UNKNOWN
 
 
-class TestBuildEmbed:
+class TestBuildNotificationText:
+    def test_lists_locations_that_need_umbrella(self):
+        data = [
+            _location_data(display_name="渋谷区", umbrella="必要"),
+            _location_data(display_name="大阪市北区", umbrella="不要"),
+            _location_data(display_name="札幌市", umbrella="必要"),
+        ]
+        text = discord_notifier.build_notification_text(["a", "b", "c"], data)
+
+        assert text == "☂️ 傘が必要: 渋谷区 / 札幌市"
+
+    def test_no_umbrella_needed(self):
+        data = [_location_data(umbrella="不要")]
+
+        assert discord_notifier.build_notification_text(["a"], data) == "🌂 今日は傘不要です"
+
+    def test_partial_failure_is_mentioned(self):
+        data = [_location_data(umbrella="不要")]
+
+        assert "⚠️ 1件取得失敗" in discord_notifier.build_notification_text(["a", "b"], data)
+
+    def test_all_failed(self):
+        assert discord_notifier.build_notification_text(["a"], []) == "⚠️ 天気情報の取得に失敗しました"
+
+
+class TestBuildMessage:
     def test_success_only(self, mocker):
         # build_location_data はThreadPoolExecutorで並列に呼び出されるため、
         # どのzipcodeが先に呼ばれるかは保証されない。呼び出し順に依存する
@@ -118,7 +157,10 @@ class TestBuildEmbed:
             side_effect=lambda zipcode: data_by_zipcode[zipcode],
         )
 
-        embed = discord_notifier.build_embed(["1500041", "5300001"])
+        payload = discord_notifier.build_message(["1500041", "5300001"])
+        embed = payload["embeds"][0]
+
+        assert payload["content"] == "☂️ 傘が必要: 渋谷区"
 
         assert embed["title"] == "🌤️ 今日の天気予報"
         assert "対象 2地点" in embed["description"]
@@ -145,7 +187,7 @@ class TestBuildEmbed:
             side_effect=fake_build_location_data,
         )
 
-        embed = discord_notifier.build_embed(["1500041", "0000000"])
+        embed = discord_notifier.build_message(["1500041", "0000000"])["embeds"][0]
 
         assert "⚠️ 1件取得失敗" in embed["description"]
         assert "取得に失敗しました" in embed["description"]
@@ -158,26 +200,26 @@ class TestBuildEmbed:
             side_effect=ValueError("zipcloud lookup failed"),
         )
 
-        embed = discord_notifier.build_embed(["0000000"])
+        embed = discord_notifier.build_message(["0000000"])["embeds"][0]
 
         assert embed["color"] == discord_notifier.COLOR_UNKNOWN
         assert "傘が必要な地点" not in embed["description"]
 
 
 class TestSendDiscord:
-    def test_posts_embed_as_single_request(self, requests_mock):
+    def test_posts_payload_as_single_request(self, requests_mock):
         webhook_url = "https://discord.com/api/webhooks/xxx/yyy"
         requests_mock.post(webhook_url, status_code=204)
 
-        embed = {"title": "test"}
-        discord_notifier.send_discord(webhook_url, embed)
+        payload = {"content": "☂️ 傘が必要: 渋谷区", "embeds": [{"title": "test"}]}
+        discord_notifier.send_discord(webhook_url, payload)
 
         assert requests_mock.call_count == 1
-        assert requests_mock.last_request.json() == {"embeds": [embed]}
+        assert requests_mock.last_request.json() == payload
 
     def test_raises_on_http_error(self, requests_mock):
         webhook_url = "https://discord.com/api/webhooks/xxx/yyy"
         requests_mock.post(webhook_url, status_code=404)
 
         with pytest.raises(Exception):
-            discord_notifier.send_discord(webhook_url, {"title": "test"})
+            discord_notifier.send_discord(webhook_url, {"embeds": [{"title": "test"}]})
