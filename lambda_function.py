@@ -19,7 +19,7 @@ AWS Lambda 実行:
 import json
 
 from weather_notify.config import get_webhook_url, get_zip_codes
-from weather_notify.discord_notifier import build_embed, send_discord
+from weather_notify.discord_notifier import build_message, send_discord
 
 
 def lambda_handler(event, context):
@@ -31,10 +31,10 @@ def lambda_handler(event, context):
     if not zip_codes:
         raise ValueError("環境変数 ZIP_CODES が設定されていません")
 
-    embed = build_embed(zip_codes)
-    print(json.dumps(embed, ensure_ascii=False, indent=2))
+    payload = build_message(zip_codes)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
-    send_discord(webhook_url, embed)
+    send_discord(webhook_url, payload)
 
     return {"statusCode": 200, "body": json.dumps({"message": "notified", "zip_codes": zip_codes})}
 

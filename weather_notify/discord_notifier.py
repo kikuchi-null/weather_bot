@@ -49,10 +49,15 @@ def _to_blockquote(lines):
 
 
 def _format_umbrella(data):
-    """傘要否の表示テキストを作る（必要な場合のみ最高降水確率を添える）。"""
-    if data["umbrella_needed"]:
-        return f"必要(最高降水確率: {data['precipitation_probability']}%)"
-    return data["umbrella"]
+    """傘要否の表示テキストを作る（降水確率が取れていれば要否によらず添える）。
+
+    「不要」でも40%と10%では持っていくかの判断が変わるため、常に確率を出す。
+    precipitation_probability はOpen-Meteoがnullを返すことがあるため、その場合は省く。
+    """
+    probability = data["precipitation_probability"]
+    if probability is None:
+        return data["umbrella"]
+    return f"{data['umbrella']}(最高降水確率: {probability}%)"
 
 
 def build_location_block(data):
@@ -107,6 +112,27 @@ def build_summary(zip_codes, location_data_list):
     return summary, now_jst
 
 
+def build_notification_text(zip_codes, location_data_list):
+    """プッシュ通知のプレビューに出す1行の要約を作る。
+
+    Embedだけのメッセージは、iPhoneのロック画面の通知に中身がほぼ表示されない。
+    そこでWebhookの `content` に結論（傘が要るか）だけを入れて、通知だけで判断できるようにする。
+    """
+    if not location_data_list:
+        return "⚠️ 天気情報の取得に失敗しました"
+
+    rainy_names = [d["display_name"] for d in location_data_list if d["umbrella_needed"]]
+    if rainy_names:
+        text = f"☂️ 傘が必要: {' / '.join(rainy_names)}"
+    else:
+        text = "🌂 今日は傘不要です"
+
+    failed_count = len(zip_codes) - len(location_data_list)
+    if failed_count > 0:
+        text += f"（⚠️ {failed_count}件取得失敗）"
+    return text
+
+
 def _fetch_all_location_data(zip_codes):
     """全地点分の天気データを並列に取得し、zip_codesと同じ順序のリストで返す。
 
@@ -132,8 +158,8 @@ def _fetch_all_location_data(zip_codes):
     return results
 
 
-def build_embed(zip_codes):
-    """全地点分の天気情報をまとめたDiscord Embedを組み立てる。"""
+def build_message(zip_codes):
+    """全地点分の天気情報をまとめたWebhookのpayload（通知用の要約 + Embed）を組み立てる。"""
     blocks = []
     location_data_list = []
 
@@ -151,17 +177,18 @@ def build_embed(zip_codes):
     # blockquoteが途切れて隣接ブロックと視覚的に混ざらないようにする。
     description = "\n\n".join([summary] + blocks)
 
-    return {
+    embed = {
         "title": "🌤️ 今日の天気予報",
         "description": description,
         "color": determine_embed_color(location_data_list),
         "timestamp": now_jst.isoformat(),
         "footer": {"text": "Data by Open-Meteo"},
     }
+    return {"content": build_notification_text(zip_codes, location_data_list), "embeds": [embed]}
 
 
-def send_discord(webhook_url, embed):
-    """Discord Webhookに1回のPOSTでEmbedメッセージを送信する。"""
-    resp = requests.post(webhook_url, json={"embeds": [embed]}, timeout=REQUEST_TIMEOUT)
+def send_discord(webhook_url, payload):
+    """Discord Webhookに1回のPOSTでメッセージを送信する。"""
+    resp = requests.post(webhook_url, json=payload, timeout=REQUEST_TIMEOUT)
     resp.raise_for_status()
     return resp
